@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Roblox: Mega Obby - Voice & Multiplayer</title>
+    <style>
+        body { margin: 0; overflow: hidden; background: #CCE5FF; touch-action: none; font-family: 'Segoe UI', sans-serif; width: 100vw; height: 100vh; }
+        canvas { display: block; width: 100%; height: 100%; }
+        
+        #roblox-ui { 
+            position: absolute; top: 0; left: 0; width: 100%; height: 50px; 
+            background: rgba(0, 0, 0, 0.4); display: flex; align-items: center; 
+            justify-content: center; z-index: 50; pointer-events: none; 
+        }
+        
+        .ui-title { position: absolute; left: 10px; display: flex; align-items: center; gap: 5px; color: white; font-weight: bold; font-size: 11px; }
+        .icon-box { width: 20px; height: 20px; background: rgba(255,255,255,0.2); border-radius: 4px; }
+        
+        #room-id-display { color: #f1c40f; font-weight: bold; font-size: 18px; text-shadow: 1px 1px 2px black; }
+
+        /* --- الشات والفويس --- */
+        #chat-container {
+            position: absolute; top: 60px; left: 10px; width: 200px; z-index: 60;
+            display: flex; flex-direction: column; gap: 5px; pointer-events: auto;
+        }
+        #chat-log {
+            height: 100px; background: rgba(0,0,0,0.3); border-radius: 5px;
+            overflow-y: auto; color: white; font-size: 12px; padding: 5px;
+            pointer-events: none;
+        }
+        #chat-input-row { display: flex; gap: 4px; }
+        #chat-input {
+            flex: 1; background: rgba(0,0,0,0.5); border: 1px solid #777;
+            color: white; padding: 5px; border-radius: 4px; outline: none; font-size: 12px;
+        }
+        #chat-send { background: #2ecc71; border: none; color: white; padding: 0 10px; border-radius: 4px; font-weight: bold; }
+
+        /* زر الفويس شات */
+        #voice-btn {
+            position: absolute; top: 60px; right: 10px; width: 50px; height: 50px;
+            background: rgba(0,0,0,0.5); border: 2px solid white; border-radius: 50%;
+            color: white; display: flex; align-items: center; justify-content: center;
+            font-size: 20px; z-index: 70; cursor: pointer; pointer-events: auto;
+        }
+        .mic-on { background: #e74c3c !important; box-shadow: 0 0 10px #e74c3c; }
+
+        .speech-bubble {
+            position: absolute; background: white; color: black; padding: 5px 10px;
+            border-radius: 12px; font-weight: bold; font-size: 13px; pointer-events: none;
+            transform: translate(-50%, -100%); border: 2px solid #3498db; z-index: 55;
+            display: none; white-space: nowrap;
+        }
+
+        .overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 100; color: white; padding: 20px; text-align: center; }
+        .hidden { display: none !important; }
+        .play-btn { background: #2ecc71; color: white; border: none; padding: 15px 40px; font-size: 20px; font-weight: bold; border-radius: 8px; cursor: pointer; box-shadow: 0 4px 0 #27ae60; margin-top: 10px; }
+        
+        #ui-controls { position: absolute; bottom: 0; left: 0; width: 100%; height: 220px; pointer-events: none; }
+        .joystick-container { position: absolute; bottom: 40px; left: 20px; width: 120px; height: 120px; background: rgba(255,255,255,0.15); border-radius: 50%; border: 2px solid rgba(255,255,255,0.3); pointer-events: auto; display: flex; align-items: center; justify-content: center; }
+        .stick { width: 55px; height: 55px; background: rgba(255,255,255,0.9); border-radius: 50%; pointer-events: none;}
+        #jumpBtn { position: absolute; bottom: 40px; right: 20px; width: 100px; height: 100px; background: rgba(255,255,255,0.2); border: 3px solid rgba(255,255,255,0.4); border-radius: 50%; color: white; font-weight: bold; display: flex; align-items: center; justify-content: center; pointer-events: auto; font-size: 18px; user-select: none; }
+    </style>
+</head>
+<body>
+
+<div id="my-bubble" class="speech-bubble"></div>
+
+<div id="roblox-ui" class="hidden">
+    <div class="ui-title"><div class="icon-box"></div> <span>Mega Adventure</span></div>
+    <div id="room-id-display"></div> 
+</div>
+
+<div id="voice-btn" class="hidden">🎤</div>
+
+<div id="chat-container" class="hidden">
+    <div id="chat-log"></div>
+    <div id="chat-input-row">
+        <input type="text" id="chat-input" placeholder="اكتب هنا...">
+        <button id="chat-send">></button>
+    </div>
+</div>
+
+<div id="startScreen" class="overlay">
+    <h1 style="color: #3498db; font-size: 32px;">MEGA ADVENTURE</h1>
+    <p style="font-size: 14px; margin-bottom: 10px;">نظام الفويس شات مُفعل</p>
+    <button class="play-btn" onclick="initHost()">إنشاء غرفة (Host)</button>
+    <div style="margin: 15px;">
+        <input type="text" id="joinInput" placeholder="كود الغرفة" style="padding: 10px; width: 120px; border-radius: 5px; border: none; text-align: center;">
+        <button class="play-btn" style="background: #e67e22; box-shadow: 0 4px 0 #d35400; padding: 10px 20px; font-size: 16px;" onclick="initJoin()">دخول</button>
+    </div>
+</div>
+
+<div id="winScreen" class="overlay hidden">
+    <h1>🏆 أسطورة!</h1>
+    <button class="play-btn" onclick="location.reload()">إعادة اللعب</button>
+</div>
+
+<div id="ui-controls" class="hidden">
+    <div class="joystick-container" id="joyZone"><div class="stick" id="stick"></div></div>
+    <div id="jumpBtn">JUMP</div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://unpkg.com/peerjs@1.5.1/dist/peerjs.min.js"></script>
+
+<script>
+    let gameActive = false;
+    let peer, otherPlayers = {};
+    let localStream = null; // تيار الصوت المحلي
+
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0xA5C9FF); 
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 2000);
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(window.devicePixelRatio);
+    document.body.appendChild(renderer.domElement);
+
+    scene.add(new THREE.HemisphereLight(0xffffff, 0x888888, 1.2));
+    const sun = new THREE.DirectionalLight(0xffffff, 0.6);
+    sun.position.set(10, 50, 10);
+    scene.add(sun);
+
+    function createPlayerModel(color = 0x0055FF) {
+        const group = new THREE.Group();
+        const createPart = (w,h,d,c,y,x=0) => {
+            const m = new THREE.Mesh(new THREE.BoxGeometry(w,h,d), new THREE.MeshPhongMaterial({color: c}));
+            m.position.set(x, y, 0); group.add(m);
+        };
+        createPart(1, 1, 1, 0xFFD700, 1.6); 
+        createPart(1.2, 1.2, 0.6, color, 0.6); 
+        createPart(0.5, 1.2, 0.5, 0xFFD700, 0.6, -0.9); 
+        createPart(0.5, 1.2, 0.5, 0xFFD700, 0.6, 0.9); 
+        createPart(0.55, 1.2, 0.55, 0x22AA22, -0.6, -0.35); 
+        createPart(0.55, 1.2, 0.55, 0x22AA22, -0.6, 0.35); 
+        const b = document.createElement('div');
+        b.className = 'speech-bubble';
+        document.body.appendChild(b);
+        group.userData.bubbleEl = b;
+        return group;
+    }
+
+    const noob = createPlayerModel(0x0055FF);
+    noob.position.set(0, 5, 0);
+    scene.add(noob);
+
+    const platforms = [], hazards = [];
+    function addBlock(x,y,z,w,h,d,c,type="normal") {
+        const p = new THREE.Mesh(new THREE.BoxGeometry(w,h,d), new THREE.MeshPhongMaterial({color: c}));
+        p.position.set(x,y,z); scene.add(p);
+        p.userData = { type, startX: x };
+        if(type === "hazard") hazards.push(p); else platforms.push(p);
+    }
+
+    addBlock(0,0,0, 15,1,15, 0x333333, "checkpoint"); 
+    for(let i=1; i<=3; i++) addBlock(0, i*0.5, -12*i, 8, 1, 8, 0x2ecc71);
+    addBlock(0, 2, -50, 12, 1, 12, 0xffffff, "checkpoint");
+    addBlock(0, 2, -65, 9, 1, 9, 0x2ecc71);
+    addBlock(0, 1.5, -75, 4, 0.3, 4, 0xff0000, "hazard"); 
+    addBlock(0, 2, -85, 9, 1, 9, 0x2ecc71);
+    addBlock(0, 3, -100, 12, 1, 12, 0xffffff, "checkpoint");
+    addBlock(0, 3.5, -120, 4, 0.5, 25, 0xe67e22); 
+    addBlock(0, 4, -145, 12, 1, 12, 0xffffff, "checkpoint");
+    for(let j=0; j<5; j++) addBlock(Math.sin(j)*6, 4+(j*1.5), -160-(j*7), 7, 1, 7, 0x3498db); 
+    addBlock(0, 12, -205, 12, 1, 12, 0xffffff, "checkpoint");
+    addBlock(-5, 13, -220, 6, 1, 6, 0x9b59b6);
+    addBlock(5, 14, -235, 6, 1, 6, 0x9b59b6);
+    addBlock(0, 15, -250, 6, 1, 6, 0x9b59b6);
+    addBlock(0, 16, -275, 25, 1, 25, 0x34495e, "checkpoint"); 
+
+    const towerZ = -310; const towerY = 16;   
+    addBlock(0, 16, -292.5, 6, 1, 10, 0x95a5a6);
+    const towerGeo = new THREE.CylinderGeometry(15, 15, 220, 32, 1, true);
+    const towerMesh = new THREE.Mesh(towerGeo, new THREE.MeshPhongMaterial({ color: 0x222222, side: THREE.BackSide }));
+    towerMesh.position.set(0, towerY + 110, towerZ);
+    scene.add(towerMesh);
+
+    for(let i=1; i<=45; i++) {
+        let angle = i * 0.8;
+        let color = new THREE.Color().setHSL(i/45, 1, 0.5).getHex(); 
+        addBlock(Math.sin(angle)*8, towerY + i*4.5, towerZ + Math.cos(angle)*8, 5, 0.6, 5, color);
+    }
+    addBlock(0, towerY + 46*4.5, towerZ, 12, 1, 12, 0xFFD700, "win");
+
+    function initHost() {
+        const id = Math.floor(1000 + Math.random() * 9000).toString();
+        peer = new Peer('obby-' + id);
+        peer.on('open', () => { document.getElementById('room-id-display').innerText = "ID: " + id; startGame(); });
+        peer.on('connection', setupConn);
+        peer.on('call', handleIncomingCall); // استقبال اتصال صوتي
+    }
+
+    function initJoin() {
+        const id = document.getElementById('joinInput').value;
+        peer = new Peer();
+        peer.on('open', () => { 
+            const conn = peer.connect('obby-' + id);
+            setupConn(conn); 
+            document.getElementById('room-id-display').innerText = "ID: " + id; 
+            startGame(); 
+        });
+        peer.on('call', handleIncomingCall); // استقبال اتصال صوتي
+    }
+
+    // التعامل مع الاتصال الصوتي القادم
+    function handleIncomingCall(call) {
+        call.answer(localStream); // الرد بصوتنا (إذا كان مفتوحاً)
+        call.on('stream', (remoteStream) => {
+            playAudioStream(remoteStream);
+        });
+    }
+
+    function playAudioStream(stream) {
+        const audio = new Audio();
+        audio.srcObject = stream;
+        audio.play();
+    }
+
+    function setupConn(c) {
+        c.on('data', (data) => {
+            if (data.type === 'move') {
+                if (!otherPlayers[c.peer]) { 
+                    otherPlayers[c.peer] = createPlayerModel(0xFF3300); 
+                    scene.add(otherPlayers[c.peer]); 
+                }
+                otherPlayers[c.peer].position.set(data.x, data.y, data.z);
+                otherPlayers[c.peer].rotation.y = data.ry;
+            }
+            if (data.type === 'chat') {
+                showBubble(otherPlayers[c.peer], data.text);
+                addChatLog("لاعب: " + data.text);
+            }
+        });
+    }
+
+    // زر المايكروفون وتفعيل الصوت
+    const voiceBtn = document.getElementById('voice-btn');
+    voiceBtn.onclick = async () => {
+        if (!localStream) {
+            try {
+                localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                voiceBtn.classList.add('mic-on');
+                voiceBtn.innerText = "🔴";
+                addChatLog("المايكروفون مفعل");
+
+                // الاتصال بجميع اللاعبين صوتياً
+                if (peer && peer.connections) {
+                    Object.keys(peer.connections).forEach(peerId => {
+                        const call = peer.call(peerId, localStream);
+                        call.on('stream', (remoteStream) => playAudioStream(remoteStream));
+                    });
+                }
+            } catch (err) {
+                alert("يرجى إعطاء صلاحية المايكروفون!");
+            }
+        } else {
+            // إغلاق المايكروفون
+            localStream.getTracks().forEach(track => track.stop());
+            localStream = null;
+            voiceBtn.classList.remove('mic-on');
+            voiceBtn.innerText = "🎤";
+            addChatLog("المايكروفون مغلق");
+        }
+    };
+
+    // بقية كود الشات
+    const chatInput = document.getElementById('chat-input');
+    const chatLog = document.getElementById('chat-log');
+    const myBubble = document.getElementById('my-bubble');
+    let bubbleTimer;
+
+    function addChatLog(txt) {
+        const d = document.createElement('div');
+        d.innerText = txt;
+        chatLog.appendChild(d);
+        chatLog.scrollTop = chatLog.scrollHeight;
+    }
+
+    function showBubble(playerObj, txt) {
+        const b = playerObj ? playerObj.userData.bubbleEl : myBubble;
+        b.innerText = txt;
+        b.style.display = 'block';
+        if (playerObj) {
+            clearTimeout(playerObj.userData.timer);
+            playerObj.userData.timer = setTimeout(() => b.style.display = 'none', 3000);
+        } else {
+            clearTimeout(bubbleTimer);
+            bubbleTimer = setTimeout(() => b.style.display = 'none', 3000);
+        }
+    }
+
+    document.getElementById('chat-send').onclick = () => {
+        const txt = chatInput.value.trim();
+        if (txt && gameActive) {
+            showBubble(null, txt);
+            addChatLog("أنت: " + txt);
+            if (peer && peer.connections) {
+                const data = { type: 'chat', text: txt };
+                Object.values(peer.connections).forEach(conns => conns.forEach(c => c.send(data)));
+            }
+            chatInput.value = "";
+            chatInput.blur();
+        }
+    };
+
+    let spawn = new THREE.Vector3(0, 5, 0);
+    let moveDir = { x: 0, z: 0 }, velocityY = 0, isGrounded = false;
+    let camYaw = 0, camPitch = -0.3, lookId = null, lastX = 0, lastY = 0;
+
+    const stick = document.getElementById('stick'), joyZone = document.getElementById('joyZone');
+    joyZone.addEventListener('touchstart', (e) => { e.preventDefault(); e.stopPropagation(); }, {passive: false});
+    joyZone.addEventListener('touchmove', (e) => {
+        const t = e.touches[0], rect = joyZone.getBoundingClientRect();
+        const dx = t.clientX - (rect.left + rect.width/2), dy = t.clientY - (rect.top + rect.height/2);
+        const dist = Math.min(Math.sqrt(dx*dx + dy*dy), 55);
+        const ang = Math.atan2(dy, dx);
+        stick.style.transform = `translate(${Math.cos(ang)*dist}px, ${Math.sin(ang)*dist}px)`;
+        moveDir.x = Math.cos(ang - camYaw) * (dist/55);
+        moveDir.z = Math.sin(ang - camYaw) * (dist/55);
+        noob.rotation.y = -ang + camYaw + Math.PI/2;
+    }, {passive: false});
+    joyZone.addEventListener('touchend', () => { stick.style.transform = 'translate(0,0)'; moveDir = {x:0, z:0}; });
+
+    window.addEventListener('touchstart', (e) => {
+        const t = e.changedTouches[0];
+        if (e.target.closest('#joyZone') || e.target.closest('#jumpBtn') || e.target.closest('#chat-container') || e.target.closest('#voice-btn')) return;
+        lookId = t.identifier; lastX = t.clientX; lastY = t.clientY;
+    });
+
+    window.addEventListener('touchmove', (e) => {
+        for(let t of e.changedTouches) {
+            if(t.identifier === lookId) {
+                camYaw -= (t.clientX - lastX) * 0.008; 
+                camPitch = Math.max(-1.4, Math.min(1.4, camPitch - (t.clientY - lastY) * 0.008));
+                lastX = t.clientX; lastY = t.clientY;
+            }
+        }
+    });
+    
+    window.addEventListener('touchend', (e) => {
+        for(let t of e.changedTouches) { if(t.identifier === lookId) lookId = null; }
+    });
+
+    document.getElementById('jumpBtn').addEventListener('touchstart', (e) => {
+        e.preventDefault(); e.stopPropagation();
+        if(isGrounded && gameActive) velocityY = 0.55; 
+    });
+
+    function startGame() {
+        gameActive = true;
+        document.getElementById('startScreen').classList.add('hidden');
+        document.getElementById('roblox-ui').classList.remove('hidden');
+        document.getElementById('ui-controls').classList.remove('hidden');
+        document.getElementById('chat-container').classList.remove('hidden');
+        document.getElementById('voice-btn').classList.remove('hidden');
+    }
+
+    function updateBubblePos(mesh, el) {
+        if (el.style.display === 'none') return;
+        const v = new THREE.Vector3();
+        mesh.updateMatrixWorld();
+        v.setFromMatrixPosition(mesh.matrixWorld);
+        v.y += 3.5; 
+        v.project(camera);
+        el.style.left = (v.x * 0.5 + 0.5) * window.innerWidth + 'px';
+        el.style.top = (-(v.y * 0.5 - 0.5)) * window.innerHeight + 'px';
+    }
+
+    function update() {
+        requestAnimationFrame(update);
+        if(!gameActive) return;
+
+        noob.position.x += moveDir.x * 0.35;
+        noob.position.z += moveDir.z * 0.35;
+        velocityY -= 0.02; noob.position.y += velocityY;
+
+        isGrounded = false;
+        platforms.forEach(p => {
+            const dx = Math.abs(noob.position.x - p.position.x), dz = Math.abs(noob.position.z - p.position.z);
+            if(dx < p.geometry.parameters.width/2 + 0.6 && dz < p.geometry.parameters.depth/2 + 0.6 && 
+               noob.position.y - 1.2 <= p.position.y + 0.5 && noob.position.y - 1.2 >= p.position.y - 0.5) {
+                noob.position.y = p.position.y + 1.7; velocityY = 0; isGrounded = true;
+                if(p.userData.type === "checkpoint") { spawn.set(p.position.x, p.position.y + 5, p.position.z); p.material.color.set(0x00ff00); }
+                if(p.userData.type === "win") { gameActive = false; document.getElementById('winScreen').classList.remove('hidden'); }
+            }
+        });
+
+        hazards.forEach(h => {
+            h.position.x = h.userData.startX + Math.sin(Date.now()*0.002) * 5;
+            if(noob.position.distanceTo(h.position) < 1.8) { noob.position.copy(spawn); velocityY = 0; }
+        });
+
+        if(noob.position.y < spawn.y - 40) { noob.position.copy(spawn); velocityY = 0; }
+
+        if (peer && peer.connections) {
+            const data = { type: 'move', x: noob.position.x, y: noob.position.y, z: noob.position.z, ry: noob.rotation.y };
+            Object.values(peer.connections).forEach(conns => conns.forEach(c => c.send(data)));
+        }
+
+        const cd = 25; 
+        camera.position.x = noob.position.x + cd * Math.sin(camYaw) * Math.cos(camPitch);
+        camera.position.y = noob.position.y + cd * Math.sin(camPitch) + 5; 
+        camera.position.z = noob.position.z + cd * Math.cos(camYaw) * Math.cos(camPitch);
+        camera.lookAt(noob.position.x, noob.position.y + 1, noob.position.z);
+        
+        updateBubblePos(noob, myBubble);
+        for (let id in otherPlayers) { updateBubblePos(otherPlayers[id], otherPlayers[id].userData.bubbleEl); }
+
+        renderer.render(scene, camera);
+    }
+    update();
+
+    window.addEventListener('resize', () => {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+</script>
+</body>
+</html>
